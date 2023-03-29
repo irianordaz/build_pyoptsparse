@@ -14,14 +14,14 @@ from packaging.version import Version, parse
 
 # Default options that the user can change with command line switches
 opts = {
-    'prefix': str(Path(Path.home() / 'pyoptsparse')),
+    'prefix': 'C:\\Users\\iordaz\\Work\\Development\\Python\\pyoptsparse', # str(Path(Path.home() / 'pyoptsparse')),
     'linear_solver': 'mumps',
     'build_pyoptsparse': True,
     'intel_compiler_suite': False,
-    'snopt_dir': None,
+    'snopt_dir': 'C:\\Users\\iordaz\\Work\Development\\snopt7\\src', # None
     'hsl_tar_file': None,
     'include_paropt': False,
-    'include_ipopt': True,
+    'include_ipopt': False, # True
     'keep_build_dir': False,
     'check_sanity': True,
     'conda_cmd': 'conda',
@@ -361,11 +361,14 @@ def subst_env_for_path(path:str)->str:
         The possibly updated path.
     """
 
+    if os.name == "nt":
+        path = path.replace('\\','//')
+
     if opts['verbose'] is True: return path
 
     for testvar in ['TMPDIR', 'TMP_DIR', 'TEMP_DIR', 'CONDA_PREFIX', 'VIRTUAL_ENV']:
-        if testvar in os.environ and re.match(os.environ[testvar], path) is not None:
-            new_path = PurePath(re.sub(os.environ[testvar], f'${testvar}/', path))
+        if testvar in os.environ and re.match(os.environ[testvar].replace('\\','//'), path) is not None:
+            new_path = PurePath(re.sub(os.environ[testvar].replace('\\','//'), f'${testvar}/', path))
             return str(new_path)
 
     return path
@@ -470,8 +473,11 @@ def run_conda_cmd(cmd_args):
     """
     cmd_list = [opts['conda_cmd']]
     cmd_list.extend(cmd_args)
-    return run_cmd(cmd_list)
+    return run_cmd(cmd_list, do_check=False)
 
+    # NOTE: If you get the following warning from Conda:
+    # "Solving environment: failed with initial frozen solve. Retrying with flexible solve." 
+    # then set do_check=False if you are sure that it will install correctly using flexible solve.
 
 def pip_install(pip_install_args, pkg_desc='packages'):
     """
@@ -501,7 +507,10 @@ def install_conda_pkg(pkg_name:str):
         The name of the package to install.
     """
     note(f'Installing {pkg_name.upper()} with conda')
-    install_args = ['install', '-y', pkg_name]
+    if pkg_name == 'mumps-include':
+        install_args = ['install', '-y', '-c conda-forge', pkg_name]
+    else:
+        install_args = ['install', '-y', pkg_name]
     run_conda_cmd(cmd_args=install_args)
     note_ok()
 
@@ -515,6 +524,7 @@ def pushd(dirname):
         The absolute or relative name of the folder to change to.
     """
     dir_stack.append(str(Path.cwd()))
+    # dir_stack = dir_stack.replace('\\','//')
     os.chdir(dirname)
     print(f'Changed directory to {code(str(subst_env_for_path(dirname)))}')
 
